@@ -1,0 +1,87 @@
+<?php
+require_once('connection.php');
+
+// ตรวจสอบสิทธิ์ผู้ใช้
+if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['role_admin', 'role_sup'])) {
+    header("Location: index.php");
+    exit();
+}
+
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
+
+// ตรวจสอบว่าได้รับ cont_id จาก URL หรือไม่
+if (!isset($_GET['cont_id']) || empty($_GET['cont_id'])) {
+    header("Location: contact_show.php");
+    exit();
+}
+
+$cont_id = intval($_GET['cont_id']);
+
+// ดึงข้อมูลช่องทางการติดต่อปัจจุบัน
+$sql_contact = "SELECT * FROM contact WHERE cont_id = ?";
+$stmt = mysqli_prepare($project_connect, $sql_contact);
+mysqli_stmt_bind_param($stmt, "i", $cont_id);
+mysqli_stmt_execute($stmt);
+$result_contact = mysqli_stmt_get_result($stmt);
+$contact = mysqli_fetch_assoc($result_contact);
+
+if (!$contact) {
+    header("Location: cont_show.php");
+    exit();
+}
+
+// ประมวลผลเมื่อฟอร์มถูกส่ง
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $cont_name = mysqli_real_escape_string($project_connect, $_POST['cont_name']);
+    $cont_link = mysqli_real_escape_string($project_connect, $_POST['cont_link']);
+
+    // อัปเดตข้อมูลช่องทางการติดต่อ
+    $sql_update = "UPDATE contact SET cont_name=?, cont_link=? WHERE cont_id=?";
+    $stmt_update = mysqli_prepare($project_connect, $sql_update);
+    mysqli_stmt_bind_param($stmt_update, "ssi", $cont_name, $cont_link, $cont_id);
+    mysqli_stmt_execute($stmt_update);
+    mysqli_stmt_close($stmt_update);
+
+    header("Location: contact_show.php");
+    exit();
+}
+?>
+<?php include('sidebar.php'); ?>
+<?php include('navbar.php'); ?>
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แก้ไขช่องทางการติดต่อ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+<div class="main-content">
+    <div class="container mt-4">
+        <h3 class="text-center mb-4">แก้ไขช่องทางการติดต่อ</h3>
+        <form method="POST">
+            <input type="hidden" name="cont_id" value="<?php echo $cont_id; ?>">
+            <div class="mb-3">
+                <label for="cont_name" class="form-label">ชื่อช่องทางการติดต่อ</label>
+                <input type="text" class="form-control" id="cont_name" name="cont_name" value="<?php echo htmlspecialchars($contact['cont_name']); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="cont_link" class="form-label">ลิงก์</label>
+                <input type="url" class="form-control" id="cont_link" name="cont_link" value="<?php echo htmlspecialchars($contact['cont_link']); ?>" required>
+            </div>
+            <div class="mb-5 text-center">
+                <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
+                <a href="cont_show.php" class="btn btn-secondary">ยกเลิก</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+
+</html>
